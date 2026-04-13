@@ -1,0 +1,813 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, user-scalable=no">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="Hourglass">
+    <meta name="theme-color" content="#0d1117">
+    <link rel="icon" type="image/png" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 180 180'><rect fill='%230d1117' width='180' height='180'/><path fill='%23c4a882' d='M45 30L135 30L85 85L135 140L45 140L95 85Z'/></svg>">
+    <link rel="apple-touch-icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 180 180'><rect fill='%230d1117' width='180' height='180'/><path fill='%23c4a882' d='M45 30L135 30L85 85L135 140L45 140L95 85Z'/></svg>">
+    <link rel="manifest" href="manifest.json">
+    <title>Sand Hourglass</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            -webkit-user-select: none;
+            user-select: none;
+            -webkit-touch-callout: none;
+        }
+
+        html, body {
+            width: 100%;
+            height: 100%;
+            background: #0d1117;
+            color: #e6edf3;
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            overflow: hidden;
+        }
+
+        canvas {
+            display: block;
+            width: 100%;
+            height: 100%;
+            background: #0d1117;
+        }
+
+        .ui-overlay {
+            position: fixed;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+        }
+
+        .top-bar {
+            padding: 12px 16px;
+            background: linear-gradient(180deg, rgba(22, 27, 34, 0.95) 0%, transparent 100%);
+            pointer-events: auto;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .timer-display {
+            font-size: 18px;
+            font-weight: 600;
+            font-family: 'Courier New', monospace;
+            color: #c4a882;
+            min-width: 70px;
+            text-align: center;
+        }
+
+        .timer-display.inactive {
+            opacity: 0.5;
+        }
+
+        .color-selector {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+
+        .color-btn {
+            width: 28px;
+            height: 28px;
+            border-radius: 6px;
+            border: 2px solid transparent;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            background-color: var(--color);
+        }
+
+        .color-btn:active {
+            transform: scale(0.95);
+        }
+
+        .color-btn.active {
+            border-color: #c4a882;
+            box-shadow: 0 0 8px var(--color);
+        }
+
+        .bottom-bar {
+            padding: 16px;
+            background: linear-gradient(0deg, rgba(22, 27, 34, 0.95) 0%, transparent 100%);
+            pointer-events: auto;
+        }
+
+        .button-group {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 8px;
+            margin-bottom: 12px;
+        }
+
+        .timer-preset {
+            padding: 10px 8px;
+            background: #161b22;
+            border: 1px solid #30363d;
+            border-radius: 6px;
+            color: #e6edf3;
+            font-size: 13px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .timer-preset:active {
+            background: #0969da;
+            border-color: #0969da;
+            color: #fff;
+        }
+
+        .timer-preset.active {
+            background: #0969da;
+            border-color: #0969da;
+        }
+
+        .action-buttons {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 8px;
+        }
+
+        .flip-btn, .clear-btn {
+            padding: 12px;
+            background: #161b22;
+            border: 1px solid #30363d;
+            border-radius: 6px;
+            color: #e6edf3;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .flip-btn:active, .clear-btn:active {
+            background: #0969da;
+            border-color: #0969da;
+        }
+
+        .flip-btn {
+            background: #238636;
+            border-color: #238636;
+        }
+
+        .flip-btn:active {
+            background: #2ea043;
+            border-color: #2ea043;
+        }
+
+        .instructions {
+            position: fixed;
+            bottom: 180px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(22, 27, 34, 0.9);
+            padding: 12px 16px;
+            border-radius: 8px;
+            font-size: 12px;
+            color: #8b949e;
+            text-align: center;
+            pointer-events: auto;
+            opacity: 0;
+            transition: opacity 0.3s ease;
+            max-width: 280px;
+            line-height: 1.4;
+        }
+
+        .instructions.show {
+            opacity: 1;
+        }
+
+        .no-gyro-warning {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(22, 27, 34, 0.95);
+            padding: 20px;
+            border-radius: 12px;
+            text-align: center;
+            color: #e6edf3;
+            font-size: 16px;
+            pointer-events: auto;
+            z-index: 1000;
+            display: none;
+            max-width: 280px;
+            line-height: 1.6;
+        }
+
+        .no-gyro-warning.show {
+            display: block;
+        }
+
+        .no-gyro-warning button {
+            margin-top: 16px;
+            padding: 10px 20px;
+            background: #0969da;
+            border: none;
+            border-radius: 6px;
+            color: #fff;
+            font-size: 14px;
+            cursor: pointer;
+            font-weight: 600;
+        }
+    </style>
+</head>
+<body>
+    <canvas id="canvas"></canvas>
+
+    <div class="ui-overlay">
+        <div class="top-bar">
+            <div class="timer-display inactive" id="timerDisplay">-</div>
+            <div class="color-selector" id="colorSelector"></div>
+        </div>
+        <div class="bottom-bar">
+            <div class="button-group">
+                <button class="timer-preset" data-time="60">1 min</button>
+                <button class="timer-preset" data-time="180">3 min</button>
+                <button class="timer-preset" data-time="300">5 min</button>
+                <button class="timer-preset" data-time="600">10 min</button>
+                <button class="timer-preset" data-time="900">15 min</button>
+                <button class="timer-preset" data-time="0">Free</button>
+            </div>
+            <div class="action-buttons">
+                <button class="flip-btn" id="flipBtn">Flip</button>
+                <button class="clear-btn" id="clearBtn">Clear</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="instructions" id="instructions">
+        Tilt your phone to move the sand
+    </div>
+
+    <div class="no-gyro-warning" id="noGyroWarning">
+        <div>Gyroscope not available</div>
+        <div style="font-size: 14px; margin-top: 8px; opacity: 0.8;">Click Flip to reverse gravity</div>
+        <button onclick="document.getElementById('noGyroWarning').classList.remove('show')">Got it</button>
+    </div>
+
+    <script>
+        // ============================================================================
+        // CONSTANTS & CONFIG
+        // ============================================================================
+
+        const canvas = document.getElementById('canvas');
+        const ctx = canvas.getContext('2d');
+
+        // Responsive canvas
+        function resizeCanvas() {
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+        }
+        resizeCanvas();
+        window.addEventListener('resize', resizeCanvas);
+
+        // Color palettes
+        const COLORS = {
+            tan: '#c4a882',
+            blue: '#58a6ff',
+            red: '#f85149',
+            white: '#e6edf3',
+            galaxy: null, // mixed
+            rainbow: null // random per particle
+        };
+
+        let currentColor = 'tan';
+        let timerDuration = 0; // 0 = free mode
+        let timerActive = false;
+        let timerElapsed = 0;
+        let timerStartTime = 0;
+        let hasFlipped = false;
+        let hasPlayedChime = false;
+
+        // Physics
+        const GRAVITY_BASE = 0.3;
+        const PARTICLE_RADIUS = 2.5;
+        const FRICTION = 0.98;
+        const BOUNCE_DAMPENING = 0.7;
+        const SAND_FLOW_THRESHOLD = 100; // ms before audio plays
+
+        let gravityX = 0;
+        let gravityY = 1;
+        let lastOrientationTime = 0;
+        let isSandFlowing = false;
+        let sandFlowStartTime = 0;
+
+        // Particles
+        let particles = [];
+        const MAX_PARTICLES = 3000;
+        let particleCount = 2000; // Start full
+        let topChamber = true; // true = top has sand
+
+        // Hourglass geometry (normalized to canvas, will scale)
+        const HOURGLASS = {
+            top: { x1: 0.2, y1: 0.15, x2: 0.8, y2: 0.15, x3: 0.5, y3: 0.45 },
+            bottom: { x1: 0.2, y1: 0.85, x2: 0.8, y2: 0.85, x3: 0.5, y3: 0.55 },
+            neck: { x: 0.5, r: 0.04 } // narrow opening
+        };
+
+        // ============================================================================
+        // UI SETUP
+        // ============================================================================
+
+        function setupColorSelector() {
+            const selector = document.getElementById('colorSelector');
+            const colorEntries = Object.entries(COLORS);
+
+            colorEntries.forEach(([name, color]) => {
+                const btn = document.createElement('button');
+                btn.className = `color-btn ${name === currentColor ? 'active' : ''}`;
+                btn.dataset.color = name;
+
+                if (color === null && name === 'galaxy') {
+                    btn.style.background = 'linear-gradient(135deg, #8b5cf6, #58a6ff, #6366f1)';
+                } else if (color === null && name === 'rainbow') {
+                    btn.style.background = 'linear-gradient(90deg, #f85149, #fbbf24, #58a6ff, #8b5cf6)';
+                } else {
+                    btn.style.setProperty('--color', color);
+                }
+
+                btn.addEventListener('click', () => selectColor(name));
+                selector.appendChild(btn);
+            });
+        }
+
+        function selectColor(name) {
+            currentColor = name;
+            document.querySelectorAll('.color-btn').forEach(b => b.classList.remove('active'));
+            document.querySelector(`[data-color="${name}"]`).classList.add('active');
+        }
+
+        document.querySelectorAll('.timer-preset').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const time = parseInt(btn.dataset.time);
+                setTimer(time);
+
+                document.querySelectorAll('.timer-preset').forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+            });
+        });
+
+        document.getElementById('flipBtn').addEventListener('click', () => {
+            flipHourglass();
+        });
+
+        document.getElementById('clearBtn').addEventListener('click', () => {
+            particles = [];
+            particleCount = 0;
+            timerActive = false;
+            hasFlipped = false;
+            hasPlayedChime = false;
+            updateTimerDisplay();
+        });
+
+        setupColorSelector();
+
+        // ============================================================================
+        // TIMER LOGIC
+        // ============================================================================
+
+        function setTimer(duration) {
+            timerDuration = duration;
+            timerActive = duration > 0;
+            timerElapsed = 0;
+            timerStartTime = Date.now();
+            hasPlayedChime = false;
+            topChamber = true;
+            hasFlipped = false;
+
+            // Scale particles to match timer
+            if (duration > 0) {
+                particleCount = Math.floor((duration / 900) * 2500); // 15 min = ~2500
+                particleCount = Math.max(500, Math.min(MAX_PARTICLES, particleCount));
+            }
+
+            particles = [];
+            spawnInitialSand();
+            updateTimerDisplay();
+        }
+
+        function updateTimerDisplay() {
+            const display = document.getElementById('timerDisplay');
+            if (timerActive && timerDuration > 0) {
+                const remaining = Math.max(0, timerDuration - timerElapsed);
+                const mins = Math.floor(remaining / 60);
+                const secs = remaining % 60;
+                display.textContent = `${mins}:${secs.toString().padStart(2, '0')}`;
+                display.classList.remove('inactive');
+            } else {
+                display.textContent = '-';
+                display.classList.add('inactive');
+            }
+        }
+
+        function flipHourglass() {
+            gravityX = 0;
+            gravityY = gravityY > 0 ? -GRAVITY_BASE : GRAVITY_BASE;
+            topChamber = !topChamber;
+            hasFlipped = !hasFlipped;
+            hasPlayedChime = false;
+
+            // If timer mode, restart
+            if (timerActive && timerDuration > 0) {
+                timerElapsed = 0;
+                timerStartTime = Date.now();
+            }
+        }
+
+        // ============================================================================
+        // PARTICLE PHYSICS
+        // ============================================================================
+
+        function spawnInitialSand() {
+            particles = [];
+            const chamberWidth = (HOURGLASS.top.x2 - HOURGLASS.top.x1) * canvas.width;
+            const chamberHeight = (HOURGLASS.top.y3 - HOURGLASS.top.y1) * canvas.height;
+
+            const topX1 = HOURGLASS.top.x1 * canvas.width;
+            const topY1 = HOURGLASS.top.y1 * canvas.height;
+            const topX2 = HOURGLASS.top.x2 * canvas.width;
+            const topY2 = HOURGLASS.top.y2 * canvas.height;
+
+            for (let i = 0; i < particleCount; i++) {
+                const px = topX1 + Math.random() * chamberWidth;
+                const py = topY1 + Math.random() * chamberHeight * 0.8;
+
+                particles.push({
+                    x: px,
+                    y: py,
+                    vx: (Math.random() - 0.5) * 2,
+                    vy: (Math.random() - 0.5) * 2,
+                    color: getParticleColor(),
+                    radius: PARTICLE_RADIUS
+                });
+            }
+        }
+
+        function getParticleColor() {
+            if (currentColor === 'galaxy') {
+                const colors = ['#8b5cf6', '#58a6ff', '#6366f1', '#a855f7'];
+                return colors[Math.floor(Math.random() * colors.length)];
+            } else if (currentColor === 'rainbow') {
+                const hue = Math.floor(Math.random() * 360);
+                return `hsl(${hue}, 100%, 60%)`;
+            } else {
+                return COLORS[currentColor] || COLORS.tan;
+            }
+        }
+
+        function updatePhysics() {
+            const now = Date.now();
+
+            // Update gravity from device orientation
+            if (lastOrientationTime && now - lastOrientationTime < 50) {
+                // Smooth transition
+            }
+
+            // Check if sand is flowing
+            const flowingParticles = particles.filter(p => Math.abs(p.vx) > 0.5 || Math.abs(p.vy) > 0.5).length;
+            const wasFlowing = isSandFlowing;
+            isSandFlowing = flowingParticles > 50;
+
+            if (isSandFlowing && !wasFlowing) {
+                sandFlowStartTime = now;
+            }
+
+            // Update particles
+            for (let i = 0; i < particles.length; i++) {
+                const p = particles[i];
+
+                // Apply gravity
+                p.vx += gravityX * GRAVITY_BASE;
+                p.vy += gravityY * GRAVITY_BASE;
+
+                // Friction/dampening
+                p.vx *= FRICTION;
+                p.vy *= FRICTION;
+
+                // Update position
+                p.x += p.vx;
+                p.y += p.vy;
+
+                // Walls
+                checkWallCollisions(p);
+
+                // Bounds
+                if (p.x < 0) p.x = 0;
+                if (p.x > canvas.width) p.x = canvas.width;
+                if (p.y < 0) p.y = 0;
+                if (p.y > canvas.height) p.y = canvas.height;
+            }
+
+            // Spatial hashing for particle collisions
+            spatialHash();
+        }
+
+        function checkWallCollisions(p) {
+            // Simple circle-line collision vs hourglass walls
+            const t = topChamber ? HOURGLASS.top : HOURGLASS.bottom;
+            const b = topChamber ? HOURGLASS.bottom : HOURGLASS.top;
+
+            // Top chamber walls (if sand in top)
+            if (topChamber) {
+                // Left wall
+                if (lineCircleCollision(
+                    t.x1 * canvas.width, t.y1 * canvas.height,
+                    t.x3 * canvas.width, t.y3 * canvas.height,
+                    p.x, p.y, p.radius
+                )) {
+                    p.vx = Math.abs(p.vx) * BOUNCE_DAMPENING;
+                }
+
+                // Right wall
+                if (lineCircleCollision(
+                    t.x2 * canvas.width, t.y2 * canvas.height,
+                    t.x3 * canvas.width, t.y3 * canvas.height,
+                    p.x, p.y, p.radius
+                )) {
+                    p.vx = -Math.abs(p.vx) * BOUNCE_DAMPENING;
+                }
+            } else {
+                // Bottom chamber walls
+                if (lineCircleCollision(
+                    b.x1 * canvas.width, b.y1 * canvas.height,
+                    b.x3 * canvas.width, b.y3 * canvas.height,
+                    p.x, p.y, p.radius
+                )) {
+                    p.vx = Math.abs(p.vx) * BOUNCE_DAMPENING;
+                }
+
+                if (lineCircleCollision(
+                    b.x2 * canvas.width, b.y2 * canvas.height,
+                    b.x3 * canvas.width, b.y3 * canvas.height,
+                    p.x, p.y, p.radius
+                )) {
+                    p.vx = -Math.abs(p.vx) * BOUNCE_DAMPENING;
+                }
+            }
+
+            // Neck opening
+            const neckX = HOURGLASS.neck.x * canvas.width;
+            const neckY = canvas.height * 0.5;
+            const neckR = HOURGLASS.neck.r * canvas.width;
+
+            const dist = Math.hypot(p.x - neckX, p.y - neckY);
+            if (dist < neckR) {
+                // Inside neck, allow flow
+                return;
+            }
+
+            // Outside neck, bounce if too close
+            if (dist < neckR + p.radius && Math.abs(p.y - neckY) < neckR * 1.5) {
+                const angle = Math.atan2(p.y - neckY, p.x - neckX);
+                p.x = neckX + Math.cos(angle) * (neckR + p.radius);
+                p.y = neckY + Math.sin(angle) * (neckR + p.radius);
+                p.vx *= -BOUNCE_DAMPENING;
+                p.vy *= -BOUNCE_DAMPENING;
+            }
+        }
+
+        function lineCircleCollision(x1, y1, x2, y2, cx, cy, r) {
+            const dx = x2 - x1;
+            const dy = y2 - y1;
+            const len = Math.hypot(dx, dy);
+            const t = Math.max(0, Math.min(1, ((cx - x1) * dx + (cy - y1) * dy) / (len * len)));
+            const px = x1 + t * dx;
+            const py = y1 + t * dy;
+            return Math.hypot(cx - px, cy - py) < r + 2;
+        }
+
+        function spatialHash() {
+            const gridSize = 30;
+            const grid = {};
+
+            // Build grid
+            for (let i = 0; i < particles.length; i++) {
+                const p = particles[i];
+                const gx = Math.floor(p.x / gridSize);
+                const gy = Math.floor(p.y / gridSize);
+                const key = `${gx},${gy}`;
+                if (!grid[key]) grid[key] = [];
+                grid[key].push(i);
+            }
+
+            // Resolve collisions
+            for (let key in grid) {
+                const indices = grid[key];
+                for (let i = 0; i < indices.length; i++) {
+                    for (let j = i + 1; j < indices.length; j++) {
+                        resolveCollision(particles[indices[i]], particles[indices[j]]);
+                    }
+                }
+            }
+        }
+
+        function resolveCollision(p1, p2) {
+            const dx = p2.x - p1.x;
+            const dy = p2.y - p1.y;
+            const dist = Math.hypot(dx, dy);
+            const minDist = p1.radius + p2.radius;
+
+            if (dist < minDist) {
+                const angle = Math.atan2(dy, dx);
+                const sin = Math.sin(angle);
+                const cos = Math.cos(angle);
+
+                // Separate
+                const overlap = (minDist - dist) / 2;
+                p1.x -= overlap * cos;
+                p1.y -= overlap * sin;
+                p2.x += overlap * cos;
+                p2.y += overlap * sin;
+
+                // Dampen velocities
+                p1.vx *= 0.95;
+                p1.vy *= 0.95;
+                p2.vx *= 0.95;
+                p2.vy *= 0.95;
+            }
+        }
+
+        // ============================================================================
+        // RENDERING
+        // ============================================================================
+
+        function draw() {
+            // Clear
+            ctx.fillStyle = '#0d1117';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            // Draw hourglass outline
+            drawHourglass();
+
+            // Draw particles
+            for (let i = 0; i < particles.length; i++) {
+                const p = particles[i];
+                ctx.fillStyle = p.color;
+                ctx.globalAlpha = 0.9;
+                ctx.beginPath();
+                ctx.arc(p.x, p.y, p.radius, 0, Math.PI * 2);
+                ctx.fill();
+            }
+            ctx.globalAlpha = 1;
+        }
+
+        function drawHourglass() {
+            const t = HOURGLASS.top;
+            const b = HOURGLASS.bottom;
+
+            const w = canvas.width;
+            const h = canvas.height;
+
+            ctx.strokeStyle = '#30363d';
+            ctx.lineWidth = 2;
+            ctx.lineCap = 'round';
+            ctx.lineJoin = 'round';
+
+            // Top chamber
+            ctx.beginPath();
+            ctx.moveTo(t.x1 * w, t.y1 * h);
+            ctx.lineTo(t.x2 * w, t.y2 * h);
+            ctx.lineTo(t.x3 * w, t.y3 * h);
+            ctx.closePath();
+            ctx.stroke();
+
+            // Bottom chamber
+            ctx.beginPath();
+            ctx.moveTo(b.x1 * w, b.y1 * h);
+            ctx.lineTo(b.x2 * w, b.y2 * h);
+            ctx.lineTo(b.x3 * w, b.y3 * h);
+            ctx.closePath();
+            ctx.stroke();
+
+            // Neck circle (opening)
+            ctx.beginPath();
+            ctx.arc(
+                HOURGLASS.neck.x * w,
+                h * 0.5,
+                HOURGLASS.neck.r * w,
+                0,
+                Math.PI * 2
+            );
+            ctx.stroke();
+
+            // Accent color on frame
+            ctx.strokeStyle = '#c4a882';
+            ctx.lineWidth = 1;
+            ctx.globalAlpha = 0.3;
+            ctx.stroke();
+            ctx.globalAlpha = 1;
+        }
+
+        // ============================================================================
+        // DEVICE ORIENTATION
+        // ============================================================================
+
+        if (typeof DeviceOrientationEvent !== 'undefined' && typeof DeviceOrientationEvent.requestPermission === 'function') {
+            // iOS 13+
+            document.addEventListener('click', () => {
+                DeviceOrientationEvent.requestPermission()
+                    .then(permissionState => {
+                        if (permissionState === 'granted') {
+                            window.addEventListener('deviceorientation', onDeviceOrientation);
+                            document.getElementById('instructions').classList.add('show');
+                            setTimeout(() => document.getElementById('instructions').classList.remove('show'), 3000);
+                        }
+                    })
+                    .catch(console.error);
+            }, { once: true });
+        } else if (typeof DeviceOrientationEvent !== 'undefined') {
+            // Android
+            window.addEventListener('deviceorientation', onDeviceOrientation);
+            document.getElementById('instructions').classList.add('show');
+            setTimeout(() => document.getElementById('instructions').classList.remove('show'), 3000);
+        } else {
+            // No gyroscope
+            document.getElementById('noGyroWarning').classList.add('show');
+        }
+
+        function onDeviceOrientation(e) {
+            const alpha = e.alpha || 0; // z axis (0-360)
+            const beta = e.beta || 0;   // x axis (-180 to 180)
+            const gamma = e.gamma || 0; // y axis (-90 to 90)
+
+            // Normalize to gravity vector
+            const betaRad = (beta * Math.PI) / 180;
+            const gammaRad = (gamma * Math.PI) / 180;
+
+            gravityX = Math.sin(gammaRad) * Math.cos(betaRad);
+            gravityY = Math.sin(betaRad) + Math.cos(betaRad) * Math.cos(gammaRad);
+
+            const len = Math.hypot(gravityX, gravityY);
+            if (len > 0) {
+                gravityX /= len;
+                gravityY /= len;
+            }
+
+            lastOrientationTime = Date.now();
+        }
+
+        // ============================================================================
+        // MAIN LOOP
+        // ============================================================================
+
+        function gameLoop() {
+            // Update timer
+            if (timerActive && timerDuration > 0) {
+                timerElapsed = Math.floor((Date.now() - timerStartTime) / 1000);
+                if (timerElapsed >= timerDuration) {
+                    timerActive = false;
+                    if (!hasPlayedChime) {
+                        playChime();
+                        hasPlayedChime = true;
+                    }
+                }
+                updateTimerDisplay();
+            }
+
+            updatePhysics();
+            draw();
+            requestAnimationFrame(gameLoop);
+        }
+
+        function playChime() {
+            const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            const now = audioCtx.currentTime;
+
+            // Soft bell tone
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+
+            osc.frequency.setValueAtTime(528, now);
+            osc.frequency.exponentialRampToValueAtTime(400, now + 1);
+
+            gain.gain.setValueAtTime(0.1, now);
+            gain.gain.exponentialRampToValueAtTime(0.01, now + 1);
+
+            osc.connect(gain);
+            gain.connect(audioCtx.destination);
+            osc.start(now);
+            osc.stop(now + 1);
+        }
+
+        // Start
+        spawnInitialSand();
+        gameLoop();
+    </script>
+
+    <script>
+        if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.register('sw.js').catch(() => {});
+        }
+    </script>
+</body>
+</html>
